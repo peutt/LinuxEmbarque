@@ -1,11 +1,11 @@
 #include <iostream>
 #include <string>
 #include <curl/curl.h>
-#include <nlohmann/json.hpp>
+#include <json/json.h>
 #include <SDL.h>
-
-using json = nlohmann::json;
-
+#include <vector>
+#include <map>
+#include <algorithm>
 // Fonction de rappel pour stocker la réponse HTTP
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
     size_t total_size = size * nmemb;
@@ -43,8 +43,16 @@ int main() {
     // Fermer libcurl
     curl_easy_cleanup(curl);
 
-    // Analyser la réponse JSON
-    json data = json::parse(response);
+    // Parse the response JSON using jsoncpp
+    Json::CharReaderBuilder jsonReader;
+    Json::Value root;
+    JSONCPP_STRING jsonParseErrors;
+    std::istringstream responseStream(response);
+
+    if (!Json::parseFromStream(jsonReader, responseStream, &root, &jsonParseErrors)) {
+        std::cerr << "Failed to parse JSON: " << jsonParseErrors << std::endl;
+        return 1;
+    }
 
     // Extraction des données pour les graphiques
     std::vector<std::string> timestamps;
@@ -53,16 +61,16 @@ int main() {
     std::vector<float> highs;
     std::vector<float> lows;
     std::vector<int> volumes;
-    std::map<std::string, json> time_series_map = data["Time Series (5min)"];
+    const Json::Value& time_series_map = root["Time Series (5min)"];
 
-    for (const auto& entry : time_series_map) {
-        timestamps.push_back(entry.first);
-        json data = entry.second;
-        openPrices.push_back(std::stof(std::string(data["1. open"])));
-        highs.push_back(std::stof(std::string(data["2. high"])));
-        lows.push_back(std::stof(std::string(data["3. low"])));
-        closePrices.push_back(std::stof(std::string(data["4. close"])));
-        volumes.push_back(std::stoi(std::string(data["5. volume"])));
+    for (const auto& entry : time_series_map.getMemberNames()) {
+        timestamps.push_back(entry);
+        const Json::Value& data = time_series_map[entry];
+        openPrices.push_back(std::stof(std::string(data["1. open"].asString())));
+        highs.push_back(std::stof(std::string(data["2. high"].asString())));
+        lows.push_back(std::stof(std::string(data["3. low"].asString())));
+        closePrices.push_back(std::stof(std::string(data["4. close"].asString())));
+        volumes.push_back(std::stoi(std::string(data["5. volume"].asString())));
     }
 
     // Initialiser SDL
@@ -105,7 +113,6 @@ int main() {
     float maxHigh = *std::max_element(highs.begin(), highs.end());
     float maxLow = *std::max_element(lows.begin(), lows.end());
     int maxVolume = *std::max_element(volumes.begin(), volumes.end());
-
 
     // Boucle principale SDL
     while (!quit) {
