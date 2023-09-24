@@ -10,3 +10,8 @@ Ensuite, il faut copier le programme ainsi crée dans le dossier overlay/build d
 On refait la commmande make.
 On lance qemu (la raseberry emulé):
 
+qemu-system-aarch64 -M virt -cpu cortex -a57 -nographic -smp 1 -kernel output/images/Image -append "root=/dev/vda console=ttyAMA0" -netdev user,id=eth0,hostfwd=tcp::2222-:22 -device virtio-net-device,netdev=eth0 -drive file=output/images/rootfs.ext4,if=none,format=raw,id=hd0 -device virtio-blk-device,drive=hd0
+
+On se connecte avec buildroot et on lance le programme :
+
+cd /build; ./programLinuxEmbarque
